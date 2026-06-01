@@ -42,4 +42,4 @@ Initialize your environment variables. Create a `.env` file inside the `backend`
 
 ```env
 PORT=5000
-MONGO_URI=mongodb+srv://kgoel286_db_user:EHyc4zR1iyccVldg@cluster0.xbty7b6.mongodb.net/
+MONGO_URI=Your_url
