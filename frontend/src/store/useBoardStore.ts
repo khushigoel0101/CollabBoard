@@ -1,51 +1,77 @@
 import { create } from 'zustand';
 import { io, type Socket } from 'socket.io-client';
-import { type IBoard, type IList, type ICard } from '../types/index'; // Cleaned extension for bundler compatibility
+import { type IBoard, type IList } from '../types/index';
+import * as api from '../api/index';
 
-const BACKEND_URL = 'http://localhost:5000';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
 interface BoardState {
   board: IBoard | null;
   socket: Socket | null;
   isLoading: boolean;
   error: string | null;
-  
-  // Actions
+  user: { name: string; email: string } | null;
+  token: string | null;
+
   initStore: (boardId: string) => void;
   fetchBoard: (boardId: string) => Promise<void>;
   moveCardOptimistic: (cardId: string, fromListId: string, toListId: string, newIndex: number) => Promise<void>;
   addList: (boardId: string, title: string) => Promise<void>;
   addCard: (boardId: string, listId: string, title: string) => Promise<void>;
-  createNewBoard: (title: string) => Promise<string | null>; // Re-inserted critical missing feature
+  createNewBoard: (title: string) => Promise<string | null>;
   disconnectStore: () => void;
+  setAuth: (user: { name: string; email: string } | null, token: string | null) => void;
+  logout: () => void;
 }
 
 export const useBoardStore = create<BoardState>((set, get) => ({
+  user: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null,
+  token: localStorage.getItem('token'),
   board: null,
   socket: null,
   isLoading: false,
   error: null,
 
+  // ─── AUTH ────────────────────────────────────────────
+
+  setAuth: (user, token) => {
+    if (token && user) {
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      set({ user, token });
+    }
+  },
+
+  logout: () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    const activeSocket = get().socket;
+    if (activeSocket) activeSocket.disconnect();
+    set({ user: null, token: null, board: null, socket: null });
+  },
+
+  // ─── SOCKET ──────────────────────────────────────────
+
   initStore: (boardId) => {
-    // Prevent duplicate socket connections if already active
     if (get().socket) {
       get().socket?.disconnect();
     }
 
     const socketInstance = io(BACKEND_URL);
-
     socketInstance.emit('join_board', boardId);
 
-    // Continuous background synchronization stream listener
-    socketInstance.on('board_mutated_remote', (data: { cardId: string; fromListId: string; toListId: string; newIndex: number }) => {
+    socketInstance.on('board_mutated_remote', (data: {
+      cardId: string;
+      fromListId: string;
+      toListId: string;
+      newIndex: number;
+    }) => {
       const currentBoard = get().board;
       if (!currentBoard) return;
 
-      // Fixed: Converted to a deep copy to preserve strict React 19 re-render triggers
       const updatedLists = JSON.parse(JSON.stringify(currentBoard.lists)) as IList[];
       const sourceList = updatedLists.find(l => l._id === data.fromListId);
       const destList = updatedLists.find(l => l._id === data.toListId);
-
       if (!sourceList || !destList) return;
 
       const cardIndex = sourceList.cards.findIndex(c => c._id === data.cardId);
@@ -60,15 +86,55 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     set({ socket: socketInstance });
   },
 
+  disconnectStore: () => {
+    const socket = get().socket;
+    if (socket) {
+      socket.disconnect();
+      set({ socket: null });
+    }
+  },
+
+  // ─── BOARD ───────────────────────────────────────────
+
   fetchBoard: async (boardId) => {
     set({ isLoading: true, error: null });
     try {
-      const res = await fetch(`${BACKEND_URL}/api/boards/${boardId}`);
-      if (!res.ok) throw new Error('Failed to retrieve workspace data');
-      const data: IBoard = await res.json();
+      const data = await api.fetchBoardById(get().token!, boardId);
       set({ board: data, isLoading: false });
     } catch (err: any) {
       set({ error: err.message, isLoading: false });
+    }
+  },
+
+  createNewBoard: async (title) => {
+    try {
+      const newBoard = await api.createBoard(get().token!, title);
+      return newBoard._id;
+    } catch (err) {
+      console.error('Board creation failed:', err);
+      return null;
+    }
+  },
+
+  // ─── LISTS ───────────────────────────────────────────
+
+  addList: async (boardId, title) => {
+    try {
+      const updatedBoard = await api.createList(get().token!, boardId, title);
+      set({ board: updatedBoard });
+    } catch (err) {
+      console.error('List creation failed:', err);
+    }
+  },
+
+  // ─── CARDS ───────────────────────────────────────────
+
+  addCard: async (boardId, listId, title) => {
+    try {
+      const updatedBoard = await api.createCard(get().token!, boardId, listId, title);
+      set({ board: updatedBoard });
+    } catch (err) {
+      console.error('Card creation failed:', err);
     }
   },
 
@@ -77,11 +143,10 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     const socket = get().socket;
     if (!currentBoard) return;
 
-    // --- PHASE 1: OPTIMISTIC UPDATE (Instant UI Change) ---
+    // Phase 1: optimistic UI update
     const updatedLists = JSON.parse(JSON.stringify(currentBoard.lists)) as IList[];
     const sourceList = updatedLists.find(l => l._id === fromListId);
     const destList = updatedLists.find(l => l._id === toListId);
-
     if (!sourceList || !destList) return;
 
     const cardIndex = sourceList.cards.findIndex(c => c._id === cardId);
@@ -89,81 +154,19 @@ export const useBoardStore = create<BoardState>((set, get) => ({
 
     const [movedCard] = sourceList.cards.splice(cardIndex, 1);
     destList.cards.splice(newIndex, 0, movedCard);
-
-    // Render updates instantly before sending any HTTP request
     set({ board: { ...currentBoard, lists: updatedLists } });
 
-    // --- PHASE 2: NETWORKING RELAY PIPELINES ---
+    // Phase 2: emit socket event
     if (socket) {
       socket.emit('card_moved', { boardId: currentBoard._id, cardId, fromListId, toListId, newIndex });
     }
 
+    // Phase 3: persist to DB, rollback on failure
     try {
-      const response = await fetch(`${BACKEND_URL}/api/boards/${currentBoard._id}/move-card`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cardId, fromListId, toListId, newIndex })
-      });
-      if (!response.ok) throw new Error('Database Sync Rejected');
+      await api.moveCard(get().token!, currentBoard._id, cardId, fromListId, toListId, newIndex);
     } catch (err) {
-      console.error("Sync Failure. Rolling back layout engine", err);
+      console.error('Move failed, rolling back:', err);
       get().fetchBoard(currentBoard._id);
     }
   },
-
-  addList: async (boardId, title) => {
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/boards/${boardId}/lists`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title })
-      });
-      if (!res.ok) throw new Error('Failed to append list');
-      const updatedBoard = await res.json();
-      set({ board: updatedBoard });
-    } catch (err) {
-      console.error(err);
-    }
-  },
-
-  addCard: async (boardId, listId, title) => {
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/boards/${boardId}/cards`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ listId, title })
-      });
-      if (!res.ok) throw new Error('Failed to allocate card payload');
-      const updatedBoard = await res.json();
-      set({ board: updatedBoard });
-    } catch (err) {
-      console.error(err);
-    }
-  },
-
-  createNewBoard: async (title) => {
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/boards`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title })
-      });
-      if (!res.ok) throw new Error('Failed to create board on server');
-      
-      const newBoard: IBoard = await res.json();
-      set({ board: newBoard });
-      return newBoard._id;
-    } catch (err) {
-      console.error("Board persistence failure:", err);
-      return null;
-    }
-  },
-
-  disconnectStore: () => {
-    const socket = get().socket;
-    if (socket) {
-      socket.disconnect();
-      set({ socket: null });
-    }
-  }
 }));

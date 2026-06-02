@@ -1,4 +1,4 @@
-import { Schema, model, Document } from 'mongoose';
+import mongoose, { Schema, model, Document } from 'mongoose';
 
 export interface ICard {
   _id: string;
@@ -30,9 +30,26 @@ const ListSchema = new Schema<IList>({
   cards: [CardSchema]
 });
 
-const BoardSchema = new Schema<IBoard>({
-  title: { type: String, required: true, trim: true },
-  lists: [ListSchema]
+const BoardSchema = new Schema({
+  title: { type: String, required: true },
+  // Track who created it
+  ownerId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  // Array of team members who have accepted the invite link
+  members: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+  lists: [
+    {
+      _id: { type: String, required: true },
+      title: { type: String, required: true },
+      cards: [
+        {
+          _id: { type: String, required: true },
+          title: { type: String, required: true },
+          description: { type: String, default: '' },
+          tags: [String]
+        }
+      ]
+    }
+  ]
 }, { timestamps: true });
 
-export const Board = model<IBoard>('Board', BoardSchema);
+export const Board = mongoose.model('Board', BoardSchema);

@@ -3,6 +3,74 @@ import { Board } from '../models/Board.js';
 import { MoveCardSchema, CreateCardSchema, CreateListSchema } from '../config/validation.js';
 import mongoose from 'mongoose';
 import { z } from 'zod';
+import { AuthRequest } from '../config/authMiddleware.js';
+
+
+// 1. GET ALL BOARDS (Only show boards where user is Owner OR a Member)
+export const getBoards = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    // Query condition: User is owner OR within members array
+    const boards = await Board.find({
+      $or: [{ ownerId: userId }, { members: userId }]
+    }, '_id title createdAt ownerId');
+    res.status(200).json(boards);
+  } catch (error) {
+    res.status(500).json({ error: 'Error loading scoped workspace' });
+  }
+};
+
+// 2. CREATE NEW BOARD (Bind to logged in user)
+export const createBoard = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { title } = req.body;
+    const userId = req.user?.userId;
+
+    const newBoard = new Board({
+      title,
+      ownerId: userId,
+      members: [],
+      lists: [
+        { _id: new mongoose.Types.ObjectId().toString(), title: 'To Do', cards: [] },
+        { _id: new mongoose.Types.ObjectId().toString(), title: 'In Progress', cards: [] },
+        { _id: new mongoose.Types.ObjectId().toString(), title: 'Done', cards: [] }
+      ]
+    });
+
+    await newBoard.save();
+    res.status(201).json(newBoard);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to preserve board configuration' });
+  }
+};
+
+// 3. TEAM INVITATION ACCEPTER ROUTE
+export const joinBoardTeam = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id: boardId } = req.params;
+    const userId = req.user?.userId;
+
+    const board = await Board.findById(boardId);
+    if (!board) {
+      res.status(404).json({ error: 'Board not found' });
+      return;
+    }
+
+    // Check if user is already owner or member
+    if (board.ownerId.toString() === userId || board.members.some(m => m.toString() === userId)) {
+      res.status(200).json({ message: 'Already a member', boardId });
+      return;
+    }
+
+    // Append member to array
+    board.members.push(new mongoose.Types.ObjectId(userId) as any);
+    await board.save();
+
+    res.status(200).json({ message: 'Successfully joined board workspace team', boardId });
+  } catch (err) {
+    res.status(500).json({ error: 'Invitation integration routine crashed' });
+  }
+};
 
 // Input Validator Schema for Board Creation
 const CreateBoardSchema = z.object({
@@ -21,46 +89,6 @@ const handleZodError = (res: Response, error: unknown): boolean => {
   return false;
 };
 
-// ==========================================
-// 1. CREATE BOARD CONTROLLER
-// ==========================================
-export const createBoard = async (req: Request, res: Response): Promise<void> => {
-  try {
-    // Parse the incoming body against the Zod schema
-    const validatedBody = CreateBoardSchema.parse(req.body);
-
-    // Initialize the new board layout with default standard columns
-    const newBoard = new Board({
-      title: validatedBody.title,
-      lists: [
-        { _id: new mongoose.Types.ObjectId().toString(), title: 'To Do', cards: [] },
-        { _id: new mongoose.Types.ObjectId().toString(), title: 'In Progress', cards: [] },
-        { _id: new mongoose.Types.ObjectId().toString(), title: 'Done', cards: [] }
-      ]
-    });
-
-    // Write directly to your MongoDB cluster
-    await newBoard.save();
-    
-    // Return the newly created board document (including its generated _id) to the client
-    res.status(201).json(newBoard);
-  } catch (error) {
-    if (handleZodError(res, error)) return;
-    res.status(500).json({ error: 'Failed to safely instantiate new workspace board' });
-  }
-};
-
-// ==========================================
-// 2. FETCH ALL BOARDS (FOR DASHBOARD VIEW)
-// ==========================================
-export const getBoards = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const boards = await Board.find({}, '_id title createdAt');
-    res.status(200).json(boards);
-  } catch (error) {
-    res.status(500).json({ error: 'Internal Server Error loading dashboard workspace' });
-  }
-};
 
 // ==========================================
 // 3. FETCH SINGLE BOARD BY ID

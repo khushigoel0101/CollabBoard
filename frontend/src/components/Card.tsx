@@ -17,7 +17,7 @@ export const Card: React.FC<CardProps> = ({ card, listId }) => {
     <div
       draggable
       onDragStart={handleDragStart}
-      className="bg-[var(--color-card-bg)] border border-slate-800 hover:border-slate-700 p-4 rounded-xl shadow-md transition-all group cursor-grab active:cursor-grabbing select-none"
+      className="bg-card-bg border border-slate-800 hover:border-slate-700 p-4 rounded-xl shadow-md transition-all group cursor-grab active:cursor-grabbing select-none"
     >
       <p className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
         {card.title}
