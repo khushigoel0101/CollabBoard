@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useBoardStore } from '../store/useBoardStore';
+import * as api from '../api/index';
 import { X } from 'lucide-react';
 
 export const AuthModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
@@ -8,56 +9,98 @@ export const AuthModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
-  const setAuth = useBoardStore(state => state.setAuth);
+  const setAuth = useBoardStore((state) => state.setAuth);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr('');
-    const endpoint = isLogin ? 'login' : 'register';
-    const payload = isLogin ? { email, password } : { name, email, password };
 
     try {
-      const res = await fetch(`http://localhost:5000/api/boards/auth/${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Auth routing transaction collapsed');
-      
+      const data = isLogin
+        ? await api.loginUser(email, password)
+        : await api.registerUser(name, email, password);
+
       setAuth(data.user, data.token);
       onClose();
     } catch (error: any) {
-      setErr(error.message);
+      setErr(error?.message || 'Authentication failed');
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z- p-4">
-      <div className="bg-white border border-slate-200 w-full max-w-sm p-6 rounded-2xl shadow-2xl relative animate-fade-in">
-        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 cursor-pointer"><X size={18} /></button>
-        <h3 className="text-md font-bold text-slate-800 mb-4">{isLogin ? 'Sign In to Workspace' : 'Create Collaborative Profile'}</h3>
+    <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+      <div className="bg-white border border-slate-200 w-full max-w-sm p-6 rounded-md shadow-lg relative">
         
-        {err && <p className="text-xs bg-red-50 text-red-600 p-2.5 rounded-xl border border-red-100 mb-3 font-medium">{err}</p>}
+        {/* CLOSE BUTTON */}
+        <button 
+          onClick={onClose} 
+          className="absolute top-4 right-4 text-slate-400 hover:text-slate-950 transition-colors cursor-pointer"
+        >
+          <X size={16} />
+        </button>
         
+        {/* MODAL HEADER */}
+        <h3 className="text-xs font-bold uppercase tracking-wider font-mono text-slate-950 mb-4">
+          {isLogin ? 'Sign In' : 'Create Account'}
+        </h3>
+        
+        {/* SYSTEM STATUS ERRORS */}
+        {err && (
+          <p className="text-[11px] font-mono font-medium bg-red-50 text-red-600 p-2.5 rounded border border-red-200 mb-3 break-all">
+            {err}
+          </p>
+        )}
+        
+        {/* AUTHENTICATION FORM */}
         <form onSubmit={handleSubmit} className="space-y-3">
           {!isLogin && (
-            <input type="text" required placeholder="Full Name" value={name} onChange={e=>setName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 text-sm p-2.5 rounded-xl focus:outline-none" />
+            <input 
+              type="text" 
+              required 
+              placeholder="Full Name" 
+              value={name} 
+              onChange={e => setName(e.target.value)} 
+              className="w-full bg-slate-50 border border-slate-300 focus:border-slate-500 focus:bg-white text-xs px-3 py-2 rounded-md focus:outline-none transition-all font-sans placeholder:text-slate-400" 
+            />
           )}
-          <input type="email" required placeholder="Email Address" value={email} onChange={e=>setEmail(e.target.value)} className="w-full bg-slate-50 border border-slate-200 text-sm p-2.5 rounded-xl focus:outline-none" />
-          <input type="password" required placeholder="Security Password" value={password} onChange={e=>setPassword(e.target.value)} className="w-full bg-slate-50 border border-slate-200 text-sm p-2.5 rounded-xl focus:outline-none" />
+          <input 
+            type="email" 
+            required 
+            placeholder="Email Address" 
+            value={email} 
+            onChange={e => setEmail(e.target.value)} 
+            className="w-full bg-slate-50 border border-slate-300 focus:border-slate-500 focus:bg-white text-xs px-3 py-2 rounded-md focus:outline-none transition-all font-sans placeholder:text-slate-400" 
+          />
+          <input 
+            type="password" 
+            required 
+            placeholder="Password" 
+            value={password} 
+            onChange={e => setPassword(e.target.value)} 
+            className="w-full bg-slate-50 border border-slate-300 focus:border-slate-500 focus:bg-white text-xs px-3 py-2 rounded-md focus:outline-none transition-all font-sans placeholder:text-slate-400" 
+          />
           
-          <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-medium text-sm py-2.5 rounded-xl cursor-pointer transition-colors mt-2">
+          <button 
+            type="submit" 
+            className="w-full bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs py-2.5 rounded-md cursor-pointer transition-colors mt-2 uppercase tracking-wide font-mono"
+          >
             {isLogin ? 'Login Session' : 'Register Account'}
           </button>
         </form>
 
-        <p className="text-center text-[11px] text-slate-500 mt-4 font-medium">
+        {/* TOGGLE AUTHENTICATION CONTEXT */}
+        <p className="text-center text-[11px] text-slate-500 mt-4 font-sans font-medium">
           {isLogin ? "New to CollabBoard? " : "Already have an account? "}
-          <span onClick={()=>setIsLogin(!isLogin)} className="text-green-600 cursor-pointer hover:underline">{isLogin ? 'Create one' : 'Sign in'}</span>
+          <span 
+            onClick={() => { setErr(''); setIsLogin(!isLogin); }} 
+            className="text-slate-950 font-bold cursor-pointer hover:underline underline-offset-2"
+          >
+            {isLogin ? 'Create one' : 'Sign in'}
+          </span>
         </p>
+        
       </div>
     </div>
   );

@@ -29,34 +29,38 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onSuccess })
 
   return (
     <>
+      {/* TRIGGER BUTTON MATCHING LANDING / DASHBOARD SCHEME */}
       <button
         onClick={() => setIsOpen(true)}
-        className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs px-4 py-2 rounded-xl transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-1.5 cursor-pointer"
+        className="bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs px-4 py-2 rounded-md transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
       >
         <Plus size={14} /> Create New Board
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z- p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-md p-6 rounded-2xl shadow-2xl relative">
+        /* FIXED: Corrected the broken z-index property to fully layer correctly */
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-100">
+          <div className="bg-white border border-slate-200 w-full max-w-md p-6 rounded-xl shadow-2xl relative text-slate-900">
             
-            {/* Close Button */}
+            {/* CLOSE BUTTON */}
             <button 
               type="button"
               onClick={() => setIsOpen(false)}
-              className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors cursor-pointer"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-950 transition-colors cursor-pointer"
             >
-              <X size={18} />
+              <X size={16} />
             </button>
 
-            <h3 className="text-md font-bold text-slate-100 mb-1">Establish New Workspace</h3>
-            <p className="text-xs text-slate-400 mb-4">
-              This will automatically generate default lists (To Do, In Progress, Done) directly inside MongoDB.
+            {/* HEADER TEXT */}
+            <h3 className="text-sm font-bold text-slate-950 uppercase tracking-tight font-sans">Establish New Workspace</h3>
+            <p className="text-xs text-slate-500 mt-0.5 mb-4">
+              This will automatically generate default lists (To Do, In Progress, Done). You can customize the board further once it's created.
             </p>
 
+            {/* DIRECT ACTION FORM */}
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
                   Board Workspace Title
                 </label>
                 <input
@@ -66,24 +70,25 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onSuccess })
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="e.g., Development Sprint Alpha"
-                  className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-sm p-3 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full bg-slate-50 border border-slate-300 text-slate-900 text-xs px-3 py-2.5 rounded-md focus:outline-none focus:border-slate-500 focus:bg-white transition-all placeholder:text-slate-400 font-sans"
                 />
               </div>
 
-              <div className="flex gap-3 justify-end pt-2">
+              {/* ACTION TOGGLES */}
+              <div className="flex gap-2 justify-end pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="text-slate-400 hover:text-white text-xs px-3 py-2 font-medium cursor-pointer"
+                  className="text-slate-500 hover:text-slate-950 font-bold text-xs px-3 py-2 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium text-xs px-4 py-2 rounded-xl transition-all cursor-pointer"
+                  className="bg-slate-900 hover:bg-slate-950 disabled:opacity-50 text-white font-bold text-xs px-4 py-2 rounded-md transition-colors cursor-pointer shadow-xs"
                 >
-                  {isSubmitting ? 'Writing to MongoDB...' : 'Initialize Board'}
+                  {isSubmitting ? 'Creating Workspace...' : 'Initialize Board'}
                 </button>
               </div>
             </form>

@@ -17,15 +17,29 @@ interface BoardState {
   fetchBoard: (boardId: string) => Promise<void>;
   moveCardOptimistic: (cardId: string, fromListId: string, toListId: string, newIndex: number) => Promise<void>;
   addList: (boardId: string, title: string) => Promise<void>;
+  deleteList: (boardId: string, listId: string) => Promise<void>;
   addCard: (boardId: string, listId: string, title: string) => Promise<void>;
+  deleteCard: (boardId: string, listId: string, cardId: string) => Promise<void>;
+  dragDeleteCard: (boardId: string, cardId: string, fromListId: string) => Promise<void>;
   createNewBoard: (title: string) => Promise<string | null>;
   disconnectStore: () => void;
   setAuth: (user: { name: string; email: string } | null, token: string | null) => void;
   logout: () => void;
 }
 
+const safeParseUser = () => {
+  const raw = localStorage.getItem('user');
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    localStorage.removeItem('user');
+    return null;
+  }
+};
+
 export const useBoardStore = create<BoardState>((set, get) => ({
-  user: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null,
+  user: safeParseUser(),
   token: localStorage.getItem('token'),
   board: null,
   socket: null,
@@ -127,6 +141,23 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     }
   },
 
+  // Optimistic: remove list from UI immediately, rollback on failure
+  deleteList: async (boardId, listId) => {
+    const currentBoard = get().board;
+    if (!currentBoard) return;
+
+    // Optimistic update
+    const optimisticLists = currentBoard.lists.filter(l => l._id !== listId);
+    set({ board: { ...currentBoard, lists: optimisticLists } });
+
+    try {
+      await api.deleteList(get().token!, boardId, listId);
+    } catch (err) {
+      console.error('Delete list failed, rolling back:', err);
+      set({ board: currentBoard });
+    }
+  },
+
   // ─── CARDS ───────────────────────────────────────────
 
   addCard: async (boardId, listId, title) => {
@@ -135,6 +166,46 @@ export const useBoardStore = create<BoardState>((set, get) => ({
       set({ board: updatedBoard });
     } catch (err) {
       console.error('Card creation failed:', err);
+    }
+  },
+
+  // Optimistic: remove card from UI immediately, rollback on failure
+  deleteCard: async (boardId, listId, cardId) => {
+    const currentBoard = get().board;
+    if (!currentBoard) return;
+
+    const optimisticLists = currentBoard.lists.map(l =>
+      l._id === listId
+        ? { ...l, cards: l.cards.filter(c => c._id !== cardId) }
+        : l
+    );
+    set({ board: { ...currentBoard, lists: optimisticLists } });
+
+    try {
+      await api.deleteCard(get().token!, boardId, listId, cardId);
+    } catch (err) {
+      console.error('Delete card failed, rolling back:', err);
+      set({ board: currentBoard });
+    }
+  },
+
+  // Used by drag-to-trash — same optimistic logic, different API endpoint
+  dragDeleteCard: async (boardId, cardId, fromListId) => {
+    const currentBoard = get().board;
+    if (!currentBoard) return;
+
+    const optimisticLists = currentBoard.lists.map(l =>
+      l._id === fromListId
+        ? { ...l, cards: l.cards.filter(c => c._id !== cardId) }
+        : l
+    );
+    set({ board: { ...currentBoard, lists: optimisticLists } });
+
+    try {
+      await api.dragDeleteCard(get().token!, boardId, cardId, fromListId);
+    } catch (err) {
+      console.error('Drag-delete card failed, rolling back:', err);
+      set({ board: currentBoard });
     }
   },
 

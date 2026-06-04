@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+export const CreateBoardSchema = z.object({
+  title: z.string().min(1, 'Board title cannot be empty').max(100, 'Title too long')
+});
+
 export const MoveCardSchema = z.object({
   cardId: z.string().min(1, 'Card ID is required'),
   fromListId: z.string().min(1, 'Source List ID is required'),
