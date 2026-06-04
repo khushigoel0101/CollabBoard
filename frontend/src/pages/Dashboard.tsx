@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBoardStore } from '../store/useBoardStore';
 import * as api from '../api/index';
@@ -8,11 +8,8 @@ import {
   FolderGit2, 
   Calendar, 
   ChevronRight, 
-  LogOut, 
   RefreshCw, 
-  Layers, 
-  Hash,
-  Terminal
+  Layers
 } from 'lucide-react';
 
 interface BoardSummary {
@@ -55,9 +52,6 @@ export const Dashboard: React.FC = () => {
 
     fetchAllBoards();
   }, [token, logout, navigate]);
-
-  // CALC DATA METRICS
-  const totalWorkspaces = useMemo(() => boards.length, [boards]);
 
   if (loading || !token || !user) {
     return (

@@ -13,23 +13,10 @@ import {pasted, dragdrop, security} from '../assets/index';
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [inputBoardId, setInputBoardId] = useState('');
-  const [errorText, setErrorText] = useState('');
   
   const { user, token } = useBoardStore();
 
-  const handleDirectConnection = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputBoardId.trim()) {
-      setErrorText('Valid repository hex token required.');
-      return;
-    }
-    setErrorText('');
-    navigate(`/board/${inputBoardId.trim()}`);
-  };
-
-
-   const typingPhrases = React.useMemo(() => [
+  const typingPhrases = React.useMemo(() => [
     "Manage architectural project pipelines", 
     "with distributed team synchronization."
   ], []);
