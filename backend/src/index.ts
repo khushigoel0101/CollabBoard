@@ -6,6 +6,7 @@ import cors from 'cors';
 import { connectDB } from './config/db.js';
 import boardRoutes from './routes/boardRoutes.js';
 import { registerBoardSockets } from './sockets/boardSockets.js';
+import { socketAuthMiddleware } from './middleware/socketAuth.js';
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -30,9 +31,6 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-
-app.use('/api/boards', boardRoutes);
-
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -47,10 +45,25 @@ const io = new Server(server, {
   }
 });
 
+app.set('io', io);
+
+app.use('/api/boards', boardRoutes);
+
+
+io.use(socketAuthMiddleware);
+
 io.on('connection', (socket) => {
   registerBoardSockets(io, socket);
 });
 
-server.listen(port, () => {
-  console.log(`🚀 Operational Engine initialized on target gateway port ${port}`);
+const start = async () => {
+  await connectDB();
+  server.listen(port, () => {
+    console.log(` Operational Engine initialized on target gateway port ${port}`);
+  });
+};
+
+start().catch((error) => {
+  console.error('Backend startup failed:', error);
+  process.exit(1);
 });

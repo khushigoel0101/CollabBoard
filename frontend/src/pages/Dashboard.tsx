@@ -24,7 +24,7 @@ export const Dashboard: React.FC = () => {
   
   const [boards, setBoards] = useState<BoardSummary[]>([]);
   const [loading, setLoading] = useState(true);
-
+  const [error, setError] = useState<string | null>(null);
   // 🔒 ROUTE GUARD
   useEffect(() => {
     if (!token || !user) {
@@ -33,25 +33,28 @@ export const Dashboard: React.FC = () => {
   }, [token, user, navigate]);
 
   // DATA FETCHING
-  useEffect(() => {
-    const fetchAllBoards = async () => {
-      if (!token) { setLoading(false); return; }
-      try {
-        const data = await api.fetchBoards(token);
-        setBoards(data);
-      } catch (err: any) {
-        console.error('Error loading dashboard indices', err);
-        if (err?.message?.includes('Session expired') || err?.message?.includes('Unauthorized')) {
-          logout();
-          navigate('/', { replace: true });
-        }
-      } finally {
-        setLoading(false);
+useEffect(() => {
+  const fetchAllBoards = async () => {
+    if (!token) { setLoading(false); return; }
+    setError(null);
+    try {
+      const data = await api.fetchBoards(token);
+      setBoards(data);
+    } catch (err: any) {
+      console.error('Error loading dashboard indices', err);
+      if (err?.message?.includes('Session expired') || err?.message?.includes('Unauthorized')) {
+        logout();
+        navigate('/', { replace: true });
+        return;
       }
-    };
+      setError('Failed to load your boards. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchAllBoards();
-  }, [token, logout, navigate]);
+  fetchAllBoards();
+}, [token, logout, navigate]);
 
   if (loading || !token || !user) {
     return (
@@ -65,6 +68,22 @@ export const Dashboard: React.FC = () => {
     );
   }
 
+  if (error) {
+  return (
+    <div className="min-h-screen bg-white flex flex-col font-sans antialiased text-slate-900">
+      <Header />
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-6">
+        <p className="text-slate-500">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 border border-slate-300 rounded-xl hover:bg-slate-100 transition"
+        >
+          Retry
+        </button>
+      </div>
+    </div>
+  );
+}
  return (
   <div className="min-h-screen bg-slate-50">
     <Header />

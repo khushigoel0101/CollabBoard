@@ -10,6 +10,7 @@ interface BoardState {
   socket: Socket | null;
   isLoading: boolean;
   error: string | null;
+  actionError: string | null;
   user: { name: string; email: string } | null;
   token: string | null;
 
@@ -45,6 +46,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
   socket: null,
   isLoading: false,
   error: null,
+  actionError: null,
 
   // ─── AUTH ────────────────────────────────────────────
 
@@ -65,41 +67,55 @@ export const useBoardStore = create<BoardState>((set, get) => ({
   },
 
   // ─── SOCKET ──────────────────────────────────────────
-
-  initStore: (boardId) => {
+  
+   initStore: (boardId) => {
     if (get().socket) {
-      get().socket?.disconnect();
-    }
+    get().socket?.disconnect();
+  }
 
-    const socketInstance = io(BACKEND_URL);
+  const token = get().token;
+  if (!token) {
+    console.error('Cannot init socket: no auth token');
+    return;
+  }
+
+  const socketInstance = io(BACKEND_URL, {
+    auth: { token }
+  });
+
+  socketInstance.on('connect_error', (err) => {
+    console.error('Socket connection failed:', err.message);
+  });
+
+  socketInstance.on('connect', () => {
     socketInstance.emit('join_board', boardId);
+  });
 
-    socketInstance.on('board_mutated_remote', (data: {
-      cardId: string;
-      fromListId: string;
-      toListId: string;
-      newIndex: number;
-    }) => {
-      const currentBoard = get().board;
-      if (!currentBoard) return;
+  socketInstance.on('board_mutated_remote', (data: {
+    cardId: string;
+    fromListId: string;
+    toListId: string;
+    newIndex: number;
+  }) => {
+    const currentBoard = get().board;
+    if (!currentBoard) return;
 
-      const updatedLists = JSON.parse(JSON.stringify(currentBoard.lists)) as IList[];
-      const sourceList = updatedLists.find(l => l._id === data.fromListId);
-      const destList = updatedLists.find(l => l._id === data.toListId);
-      if (!sourceList || !destList) return;
+    const updatedLists = JSON.parse(JSON.stringify(currentBoard.lists)) as IList[];
+    const sourceList = updatedLists.find(l => l._id === data.fromListId);
+    const destList = updatedLists.find(l => l._id === data.toListId);
+    if (!sourceList || !destList) return;
 
-      const cardIndex = sourceList.cards.findIndex(c => c._id === data.cardId);
-      if (cardIndex === -1) return;
+    const cardIndex = sourceList.cards.findIndex(c => c._id === data.cardId);
+    if (cardIndex === -1) return;
 
-      const [movedCard] = sourceList.cards.splice(cardIndex, 1);
-      destList.cards.splice(data.newIndex, 0, movedCard);
+    const [movedCard] = sourceList.cards.splice(cardIndex, 1);
+    destList.cards.splice(data.newIndex, 0, movedCard);
 
-      set({ board: { ...currentBoard, lists: updatedLists } });
-    });
+    set({ board: { ...currentBoard, lists: updatedLists } });
+  });
 
     set({ socket: socketInstance });
   },
-
   disconnectStore: () => {
     const socket = get().socket;
     if (socket) {
@@ -211,7 +227,6 @@ export const useBoardStore = create<BoardState>((set, get) => ({
 
   moveCardOptimistic: async (cardId, fromListId, toListId, newIndex) => {
     const currentBoard = get().board;
-    const socket = get().socket;
     if (!currentBoard) return;
 
     // Phase 1: optimistic UI update
@@ -227,17 +242,16 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     destList.cards.splice(newIndex, 0, movedCard);
     set({ board: { ...currentBoard, lists: updatedLists } });
 
-    // Phase 2: emit socket event
-    if (socket) {
-      socket.emit('card_moved', { boardId: currentBoard._id, cardId, fromListId, toListId, newIndex });
-    }
-
-    // Phase 3: persist to DB, rollback on failure
-    try {
-      await api.moveCard(get().token!, currentBoard._id, cardId, fromListId, toListId, newIndex);
-    } catch (err) {
-      console.error('Move failed, rolling back:', err);
-      get().fetchBoard(currentBoard._id);
-    }
-  },
-}));
+    // Phase 2: persist to DB, rollback on failure
+       try {
+          await api.moveCard(get().token!, currentBoard._id, cardId, fromListId, toListId, newIndex);
+      } catch (err: any) {
+       const status = err?.response?.status;
+       const message =status === 409 ? 'This card was updated by someone else. Refreshing the board...' : 'Move failed, refreshing the board.';
+       console.error('Move failed, rolling back:', err);
+       set({ actionError: message });
+       get().fetchBoard(currentBoard._id);
+      }
+    },
+  }
+));

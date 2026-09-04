@@ -46,7 +46,7 @@ const BoardSchema = new Schema<IBoard>(
     members: { type: [Schema.Types.ObjectId], ref: 'User', default: [] },
     lists: { type: [ListSchema], default: [] }
   },
-  { timestamps: true }
+  { timestamps: true, optimisticConcurrency: true }
 );
 
 BoardSchema.set('toJSON', {

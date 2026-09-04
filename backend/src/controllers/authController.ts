@@ -2,18 +2,12 @@ import { Request, Response } from 'express';
 import { User } from '../models/User.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-
-const getJwtSecret = (): string => {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) throw new Error('JWT_SECRET not set');
-  return secret;
-};
+import { getJwtSecret } from '../config/jwt.js';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
     const { name, email, password } = req.body;
 
-    // Input validation
     if (!name || !email || !password) {
       res.status(400).json({ error: 'Name, email and password are required' });
       return;

@@ -371,7 +371,9 @@ export const moveCard = async (req: AuthRequest, res: Response): Promise<void> =
 
     const cardIndex = sourceList.cards.findIndex((c) => c._id.toString() === cardId);
     if (cardIndex === -1) {
-      res.status(400).json({ error: 'Card data not found in source origin list track' });
+      res.status(409).json({ 
+        error: 'This card was already moved by someone else. Please refresh the board.' 
+      });
       return;
     }
 
@@ -380,7 +382,28 @@ export const moveCard = async (req: AuthRequest, res: Response): Promise<void> =
     destList.cards.splice(cleanIndex, 0, movedCard);
 
     board.markModified('lists');
-    await board.save();
+
+    try {
+      await board.save();
+    } catch (saveError: any) {
+      if (saveError.name === 'VersionError') {
+        res.status(409).json({ 
+          error: 'This board was updated by someone else while you were editing. Please refresh and try again.' 
+        });
+        return;
+      }
+      throw saveError;
+    }
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(boardId).emit('board_mutated_remote', {
+        cardId,
+        fromListId,
+        toListId,
+        newIndex: cleanIndex,
+      });
+    }
 
     res.status(200).json({ message: 'State mutated and persistent', board });
   } catch (error) {
