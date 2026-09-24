@@ -2,9 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBoardStore } from '../store/useBoardStore';
 import { AuthModal } from '../components/AuthModal';
-import { 
-  Grid, 
-  ArrowRight } from 'lucide-react';
+import {  ArrowRight } from 'lucide-react';
 import { TypingEffect } from '../utilities/Typing';
 import {workspace} from '../assets/index';
 import {pasted, dragdrop, security} from '../assets/index';
@@ -14,11 +12,14 @@ export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const [showAuthModal, setShowAuthModal] = useState(false);
   
-  const { user, token } = useBoardStore();
+  const { user } = useBoardStore();
 
   const typingPhrases = React.useMemo(() => [
-    "Manage architectural project pipelines", 
-    "with distributed team synchronization."
+    "Collaborate",
+    "Organize",
+    "Track",
+    "Deliver",
+    "Succeed"
   ], []);
 
   return (
@@ -28,12 +29,9 @@ export const LandingPage: React.FC = () => {
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           
           <div className="flex items-center gap-2.5">
-            <div className="bg-slate-900 text-white p-2 rounded-md">
-              <Grid size={16} />
-            </div>
             <div>
               <span className="text-base font-bold tracking-tight text-slate-950 uppercase block">CollabBoard</span>
-              <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-widest block -mt-1">Document Repository Hub</span>
+              <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-widest block -mt-1">Project tracking app</span>
             </div>
           </div>
           
@@ -47,7 +45,7 @@ export const LandingPage: React.FC = () => {
               </button>
             ) : (
               <button 
-                onClick={() => setShowAuthModal(true)}
+                onClick={() => navigate('/login')}
                 className="text-xs font-bold bg-slate-900 hover:bg-slate-950 text-white px-4 py-2 rounded-md transition-colors"
               >
                 Account Setup
@@ -62,9 +60,6 @@ export const LandingPage: React.FC = () => {
         <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           
           <div className="lg:col-span-7 space-y-5">
-            <div className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-sky-400 bg-sky-500/10 px-2.5 py-0.5 rounded border border-sky-500/20 font-mono">
-              ORGANIZE • COLLABORATE • DELIVER
-            </div>
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white leading-tight min-h-[96px] sm:min-h-[72px] md:min-h-[88px] flex items-start">
              <TypingEffect phrases={typingPhrases}
               typingSpeed={50}
@@ -73,14 +68,21 @@ export const LandingPage: React.FC = () => {
             />
             </h1>
             <p className="text-slate-400 text-xs md:text-sm max-w-xl leading-relaxed">
-              Initialize modular board documents, populate tracking lists across isolated server tracks, and observe execution transformations natively as mutations happen.
+              Streamline your project management and enhance team collaboration with our platform
             </p>
             <div className="pt-2">
               <button 
-                onClick={() => token ? navigate('/dashboard') : setShowAuthModal(true)}
+                onClick={() => {
+                  if (user) {
+                    navigate('/dashboard');
+                    return;
+                  }
+
+                  navigate('/login');
+                }}
                 className="bg-white hover:bg-slate-100 text-slate-950 font-bold text-xs px-5 py-2.5 rounded-md transition-colors inline-flex items-center gap-2 shadow-xs"
               >
-                {token ? 'Go to Active Workspaces' : 'Initialize Workspace Session'}
+                {user ? 'Go to Active Workspaces' : 'Initialize Workspace Session'}
                 <ArrowRight size={14} />
               </button>
             </div>

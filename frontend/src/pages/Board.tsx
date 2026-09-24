@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useBoardStore } from '../store/useBoardStore';
 import { Column } from '../components/Column';
 import { Header } from '../components/Header';
-import { Plus, ArrowLeft, Share2, Check, ShieldAlert, RefreshCw, Trash2 } from 'lucide-react';
+import { Plus, ArrowLeft, Share2, Check, ShieldAlert, RefreshCw, Trash2, Bell } from 'lucide-react';
 
 export const Board: React.FC = () => {
   const { id: boardId } = useParams<{ id: string }>();
@@ -11,7 +11,7 @@ export const Board: React.FC = () => {
 
   const {
     board, fetchBoard, initStore, disconnectStore, addList,
-    isLoading, error, actionError, token, dragDeleteCard,
+    isLoading, error, actionError, user, dragDeleteCard, socket,
   } = useBoardStore();
 
   const [newListTitle, setNewListTitle] = useState('');
@@ -19,13 +19,14 @@ export const Board: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [isDraggingCard, setIsDraggingCard] = useState(false);
   const [isGlobalTrashHovered, setIsGlobalTrashHovered] = useState(false);
+  const [boardNotice, setBoardNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!boardId || !token) return;
+    if (!boardId) return;
     initStore(boardId);
     fetchBoard(boardId);
     return () => disconnectStore();
-  }, [boardId, token, initStore, fetchBoard, disconnectStore]);
+  }, [boardId, initStore, fetchBoard, disconnectStore]);
 
   useEffect(() => {
     const onDragStart = (e: DragEvent) => {
@@ -51,6 +52,37 @@ export const Board: React.FC = () => {
     }, 3000);
     return () => clearTimeout(timer);
   }, [actionError]);
+
+  useEffect(() => {
+    if (!('Notification' in window)) return;
+
+    if (Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => undefined);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleBoardMutation = () => {
+      setBoardNotice('Board updated by another user');
+
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('CollabBoard', {
+          body: 'A board change was detected.',
+        });
+      }
+
+      const timer = setTimeout(() => setBoardNotice(null), 3000);
+      return () => clearTimeout(timer);
+    };
+
+    socket.on('board_mutated_remote', handleBoardMutation);
+
+    return () => {
+      socket.off('board_mutated_remote', handleBoardMutation);
+    };
+  }, [socket]);
 
   const handleCreateList = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,7 +115,7 @@ export const Board: React.FC = () => {
   };
 
   // ── STATE SCREENS ──────────────────────────────────────────────
-  if (!token) return (
+  if (!user) return (
     <div className="min-h-screen flex flex-col bg-[#f5f4f0] text-[#0d0d14] font-sans antialiased">
       <Header />
       <div className="flex-1 flex flex-col items-center justify-center">
@@ -180,6 +212,22 @@ export const Board: React.FC = () => {
       {actionError && (
         <div className="bg-[#fff1f3] border border-[#ff4f6d] text-[#ff4f6d] text-[0.8rem] font-medium text-center px-10 py-2.5">
           {actionError}
+        </div>
+      )}
+
+      {boardNotice && (
+        <div className="fixed right-4 top-4 z-50 max-w-sm rounded-2xl border border-white/10 bg-[#0d0d14]/95 px-4 py-3 text-sm font-medium text-white shadow-[0_18px_45px_rgba(13,13,20,0.28)] backdrop-blur-sm">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 rounded-full bg-[#5b4fff]/20 p-1.5 text-[#b7bcff]">
+              <Bell size={14} />
+            </div>
+            <div>
+              <div className="text-[0.72rem] font-bold uppercase tracking-[0.14em] text-[#b7bcff]">
+                Board Update
+              </div>
+              <div className="mt-1 text-[0.8rem] text-white/90">{boardNotice}</div>
+            </div>
+          </div>
         </div>
       )}
 

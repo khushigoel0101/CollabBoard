@@ -8,3 +8,5 @@ import dragdrop from './images.gif';
 export { dragdrop };
 import security from './b74905e1.jpg'
 export { security };
+import auth from './auth.jpg';
+export { auth };

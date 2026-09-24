@@ -8,13 +8,13 @@ import { UserPlus, Loader2 } from 'lucide-react';
 export const InviteHandler: React.FC = () => {
   const { id: boardId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const token = useBoardStore(state => state.token);
+  const user = useBoardStore(state => state.user);
   const [showAuth, setShowAuth] = useState(false);
   const [status, setStatus] = useState('VERIFYING_WORKSPACE_SECURITY_CLEARANCE...');
   const [isProcessing, setIsProcessing] = useState(true);
 
   useEffect(() => {
-    if (!token) {
+    if (!user) {
       setShowAuth(true);
       setStatus('AUTHENTICATION_REQUIRED_TO_JOIN_TEAM_CHANNEL');
       setIsProcessing(false);
@@ -24,7 +24,7 @@ export const InviteHandler: React.FC = () => {
     const claimInvitation = async () => {
       try {
         setIsProcessing(true);
-        await api.joinBoard(token!, boardId!);
+        await api.joinBoard(undefined, boardId!);
         setStatus('ACCESS_GRANTED_FORWARDING_TO_CANVAS');
         setTimeout(() => navigate(`/board/${boardId}`), 1200);
       } catch (err: any) {
@@ -34,7 +34,7 @@ export const InviteHandler: React.FC = () => {
     };
 
     claimInvitation();
-  }, [token, boardId, navigate]);
+  }, [user, boardId, navigate]);
 
   return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 text-center max-w-sm mx-auto">

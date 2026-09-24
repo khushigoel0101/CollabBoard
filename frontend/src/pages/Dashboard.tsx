@@ -20,25 +20,25 @@ interface BoardSummary {
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user, token, logout } = useBoardStore();
+  const { user, logout } = useBoardStore();
   
   const [boards, setBoards] = useState<BoardSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // 🔒 ROUTE GUARD
   useEffect(() => {
-    if (!token || !user) {
+    if (!user) {
       navigate('/', { replace: true });
     }
-  }, [token, user, navigate]);
+  }, [user, navigate]);
 
   // DATA FETCHING
 useEffect(() => {
   const fetchAllBoards = async () => {
-    if (!token) { setLoading(false); return; }
+    if (!user) { setLoading(false); return; }
     setError(null);
     try {
-      const data = await api.fetchBoards(token);
+      const data = await api.fetchBoards();
       setBoards(data);
     } catch (err: any) {
       console.error('Error loading dashboard indices', err);
@@ -54,9 +54,9 @@ useEffect(() => {
   };
 
   fetchAllBoards();
-}, [token, logout, navigate]);
+}, [user, logout, navigate]);
 
-  if (loading || !token || !user) {
+  if (loading || !user) {
     return (
       <div className="min-h-screen bg-white flex flex-col font-sans antialiased text-slate-900">
         <Header />
@@ -102,8 +102,7 @@ useEffect(() => {
           </h1>
 
           <p className="text-slate-500 mt-3 max-w-xl">
-            Manage boards, collaborate with teammates and
-            keep your projects moving forward.
+            Collab with your team on architectural projects, manage boards, and track progress seamlessly.
           </p>
         </div>
 

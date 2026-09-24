@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useBoardStore } from '../store/useBoardStore';
 import * as api from '../api/index';
 import { X } from 'lucide-react';
+import { auth } from '../assets';
 
 export const AuthModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -22,7 +23,7 @@ export const AuthModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ 
         ? await api.loginUser(email, password)
         : await api.registerUser(name, email, password);
 
-      setAuth(data.user, data.token);
+      setAuth(data.user, null);
       onClose();
     } catch (error: any) {
       setErr(error?.message || 'Authentication failed');
@@ -30,77 +31,81 @@ export const AuthModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ 
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-slate-200 w-full max-w-sm p-6 rounded-md shadow-lg relative">
-        
-        {/* CLOSE BUTTON */}
-        <button 
-          onClick={onClose} 
+    <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-hidden">
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `url(${auth})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      />
+      <div className="absolute inset-0 bg-slate-950/45" />
+
+      <div className="relative z-10 bg-white border border-slate-200 w-full max-w-sm p-6 rounded-md shadow-lg">
+        <button
+          onClick={onClose}
           className="absolute top-4 right-4 text-slate-400 hover:text-slate-950 transition-colors cursor-pointer"
         >
           <X size={16} />
         </button>
-        
-        {/* MODAL HEADER */}
-        <h3 className="text-xs font-bold uppercase tracking-wider font-mono text-slate-950 mb-4">
+
+        <h3 className="text-lg font-semibold text-slate-950 mb-4">
           {isLogin ? 'Sign In' : 'Create Account'}
         </h3>
-        
-        {/* SYSTEM STATUS ERRORS */}
+
         {err && (
-          <p className="text-[11px] font-mono font-medium bg-red-50 text-red-600 p-2.5 rounded border border-red-200 mb-3 break-all">
+          <p className="text-sm font-medium bg-red-50 text-red-600 p-2.5 rounded border border-red-200 mb-3 break-all">
             {err}
           </p>
         )}
-        
-        {/* AUTHENTICATION FORM */}
+
         <form onSubmit={handleSubmit} className="space-y-3">
           {!isLogin && (
-            <input 
-              type="text" 
-              required 
-              placeholder="Full Name" 
-              value={name} 
-              onChange={e => setName(e.target.value)} 
-              className="w-full bg-slate-50 border border-slate-300 focus:border-slate-500 focus:bg-white text-xs px-3 py-2 rounded-md focus:outline-none transition-all font-sans placeholder:text-slate-400" 
+            <input
+              type="text"
+              required
+              placeholder="Full Name"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-300 focus:border-slate-500 focus:bg-white text-sm px-3 py-2.5 rounded-md focus:outline-none transition-all font-sans placeholder:text-slate-400"
             />
           )}
-          <input 
-            type="email" 
-            required 
-            placeholder="Email Address" 
-            value={email} 
-            onChange={e => setEmail(e.target.value)} 
-            className="w-full bg-slate-50 border border-slate-300 focus:border-slate-500 focus:bg-white text-xs px-3 py-2 rounded-md focus:outline-none transition-all font-sans placeholder:text-slate-400" 
+          <input
+            type="email"
+            required
+            placeholder="Email Address"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            className="w-full bg-slate-50 border border-slate-300 focus:border-slate-500 focus:bg-white text-sm px-3 py-2.5 rounded-md focus:outline-none transition-all font-sans placeholder:text-slate-400"
           />
-          <input 
-            type="password" 
-            required 
-            placeholder="Password" 
-            value={password} 
-            onChange={e => setPassword(e.target.value)} 
-            className="w-full bg-slate-50 border border-slate-300 focus:border-slate-500 focus:bg-white text-xs px-3 py-2 rounded-md focus:outline-none transition-all font-sans placeholder:text-slate-400" 
+          <input
+            type="password"
+            required
+            placeholder="Password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            className="w-full bg-slate-50 border border-slate-300 focus:border-slate-500 focus:bg-white text-sm px-3 py-2.5 rounded-md focus:outline-none transition-all font-sans placeholder:text-slate-400"
           />
-          
-          <button 
-            type="submit" 
-            className="w-full bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs py-2.5 rounded-md cursor-pointer transition-colors mt-2 uppercase tracking-wide font-mono"
+
+          <button
+            type="submit"
+            className="w-full bg-slate-900 hover:bg-slate-950 text-white font-semibold text-sm py-2.5 rounded-md cursor-pointer transition-colors mt-2"
           >
-            {isLogin ? 'Login Session' : 'Register Account'}
+            {isLogin ? 'Login' : 'Create Account'}
           </button>
         </form>
 
-        {/* TOGGLE AUTHENTICATION CONTEXT */}
-        <p className="text-center text-[11px] text-slate-500 mt-4 font-sans font-medium">
-          {isLogin ? "New to CollabBoard? " : "Already have an account? "}
-          <span 
-            onClick={() => { setErr(''); setIsLogin(!isLogin); }} 
-            className="text-slate-950 font-bold cursor-pointer hover:underline underline-offset-2"
+        <p className="text-center text-sm text-slate-500 mt-4 font-sans">
+          {isLogin ? 'New to CollabBoard? ' : 'Already have an account? '}
+          <span
+            onClick={() => { setErr(''); setIsLogin(!isLogin); }}
+            className="text-slate-950 font-semibold cursor-pointer hover:underline underline-offset-2"
           >
             {isLogin ? 'Create one' : 'Sign in'}
           </span>
         </p>
-        
       </div>
     </div>
   );

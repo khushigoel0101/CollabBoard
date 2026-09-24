@@ -7,6 +7,13 @@ const authHeader = (token: string) => ({
   'Content-Type': 'application/json'
 });
 
+const requestOptions = (token?: string, method?: string, body?: BodyInit) => ({
+  method,
+  credentials: 'include' as const,
+  headers: token ? authHeader(token) : { 'Content-Type': 'application/json' },
+  ...(body ? { body } : {})
+});
+
 const parseResponse = async (res: Response) => {
   const payload = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -20,6 +27,7 @@ const parseResponse = async (res: Response) => {
 export const loginUser = async (email: string, password: string) => {
   const res = await fetch(`${BASE}/api/boards/auth/login`, {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password })
   });
@@ -29,6 +37,7 @@ export const loginUser = async (email: string, password: string) => {
 export const registerUser = async (name: string, email: string, password: string) => {
   const res = await fetch(`${BASE}/api/boards/auth/register`, {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, email, password })
   });
@@ -37,25 +46,25 @@ export const registerUser = async (name: string, email: string, password: string
 
 // ─── BOARDS ──────────────────────────────────────────
 
-export const fetchBoards = async (token: string) => {
+export const fetchBoards = async (token?: string) => {
   const res = await fetch(`${BASE}/api/boards`, {
-    headers: authHeader(token)
+    ...requestOptions(token),
+    method: 'GET'
   });
   return parseResponse(res);
 };
 
-export const createBoard = async (token: string, title: string) => {
+export const createBoard = async (token: string | undefined, title: string) => {
   const res = await fetch(`${BASE}/api/boards`, {
-    method: 'POST',
-    headers: authHeader(token),
-    body: JSON.stringify({ title })
+    ...requestOptions(token, 'POST', JSON.stringify({ title }))
   });
   return parseResponse(res);
 };
 
-export const fetchBoardById = async (token: string, boardId: string) => {
+export const fetchBoardById = async (token: string | undefined, boardId: string) => {
   const res = await fetch(`${BASE}/api/boards/${boardId}`, {
-    headers: authHeader(token)
+    ...requestOptions(token),
+    method: 'GET'
   });
   if (res.status === 401 || res.status === 403) {
     throw new Error('Session expired. Please login again.');
@@ -63,63 +72,54 @@ export const fetchBoardById = async (token: string, boardId: string) => {
   return parseResponse(res);
 };
 
-export const joinBoard = async (token: string, boardId: string) => {
+export const joinBoard = async (token: string | undefined, boardId: string) => {
   const res = await fetch(`${BASE}/api/boards/${boardId}/join`, {
-    method: 'POST',
-    headers: authHeader(token)
+    ...requestOptions(token, 'POST')
   });
   return parseResponse(res);
 };
 
 // ─── LISTS ───────────────────────────────────────────
 
-export const createList = async (token: string, boardId: string, title: string) => {
+export const createList = async (token: string | undefined, boardId: string, title: string) => {
   const res = await fetch(`${BASE}/api/boards/${boardId}/lists`, {
-    method: 'POST',
-    headers: authHeader(token),
-    body: JSON.stringify({ title })
+    ...requestOptions(token, 'POST', JSON.stringify({ title }))
   });
   return parseResponse(res);
 };
 
 // ─── CARDS ───────────────────────────────────────────
 
-export const createCard = async (token: string, boardId: string, listId: string, title: string) => {
+export const createCard = async (token: string | undefined, boardId: string, listId: string, title: string) => {
   const res = await fetch(`${BASE}/api/boards/${boardId}/cards`, {
-    method: 'POST',
-    headers: authHeader(token),
-    body: JSON.stringify({ listId, title })
+    ...requestOptions(token, 'POST', JSON.stringify({ listId, title }))
   });
   return parseResponse(res);
 };
 
-export const deleteList = async (token: string, boardId: string, listId: string) => {
+export const deleteList = async (token: string | undefined, boardId: string, listId: string) => {
   const res = await fetch(`${BASE}/api/boards/${boardId}/lists/${listId}`, {
-    method: 'DELETE',
-    headers: authHeader(token)
+    ...requestOptions(token, 'DELETE')
   });
   return parseResponse(res);
 };
 
-export const deleteCard = async (token: string, boardId: string, listId: string, cardId: string) => {
+export const deleteCard = async (token: string | undefined, boardId: string, listId: string, cardId: string) => {
   const res = await fetch(`${BASE}/api/boards/${boardId}/lists/${listId}/cards/${cardId}`, {
-    method: 'DELETE',
-    headers: authHeader(token)
+    ...requestOptions(token, 'DELETE')
   });
   return parseResponse(res);
 };
 
-export const dragDeleteCard = async (token: string, boardId: string, cardId: string, fromListId: string) => {
+export const dragDeleteCard = async (token: string | undefined, boardId: string, cardId: string, fromListId: string) => {
   const res = await fetch(`${BASE}/api/boards/${boardId}/cards/${cardId}/trash`, {
-    method: 'DELETE',
-    headers: authHeader(token),
-    body: JSON.stringify({ fromListId })
+    ...requestOptions(token, 'DELETE', JSON.stringify({ fromListId }))
   });
   return parseResponse(res);
 };
 
 export const moveCard = async (
-  token: string,
+  token: string | undefined,
   boardId: string,
   cardId: string,
   fromListId: string,
@@ -127,9 +127,7 @@ export const moveCard = async (
   newIndex: number
 ) => {
   const res = await fetch(`${BASE}/api/boards/${boardId}/move-card`, {
-    method: 'PATCH',
-    headers: authHeader(token),
-    body: JSON.stringify({ cardId, fromListId, toListId, newIndex })
+    ...requestOptions(token, 'PATCH', JSON.stringify({ cardId, fromListId, toListId, newIndex }))
   });
   return parseResponse(res);
 };
