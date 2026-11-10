@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownedBoards Board[]       @relation("BoardOwner")
+  memberships BoardMember[]
+}
+
+model Board {
+  id        String   @id @default(uuid()) @db.Uuid
+  title     String
+  ownerId   String   @db.Uuid
+  version   Int      @default(0)          // replaces optimisticConcurrency
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner   User          @relation("BoardOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members BoardMember[]
+  lists   List[]
+
+  @@index([ownerId])
+}
+
+model BoardMember {
+  boardId String @db.Uuid
+  userId  String @db.Uuid
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([boardId, userId])
+  @@index([userId])
+}
+
+model List {
+  id       String @id @default(uuid()) @db.Uuid
+  boardId  String @db.Uuid
+  title    String
+  position Float
+
+  board Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards Card[]
+
+  @@index([boardId, position])
+}
+
+model Card {
+  id          String   @id @default(uuid()) @db.Uuid
+  listId      String   @db.Uuid
+  title       String
+  description String   @default("")
+  tags        String[] @default([])
+  position    Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  list List @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@index([listId, position])
+}

@@ -1,0 +1,17 @@
+config:
+  target: "http://localhost:5000" 
+  engines:
+    socketio-v3: {} 
+  phases:
+    - duration: 30
+      arrivalRate: 10 
+scenarios:
+  - name: "Test Typing Indicator Latency"
+    engine: socketio-v3
+    flow:
+      - connect:
+          auth:
+            token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YWJlYWMyZTM2YjI3ZDNkZDkzNDcxMzEiLCJlbWFpbCI6Imtnb2VsMjk4NkBnbWFpbC5jb20iLCJpYXQiOjE3OTA4ODA4MTQsImV4cCI6MTc5MTQ4NTYxNH0.rLOqXZynlfHX1cwLUwNkF5g8eo2AiJ93n6cGql0y2GE"
+      - emit:
+          channel: "user_typing_focus" 
+          data: "6a1d8fcc44cc7b0ebaa58309"

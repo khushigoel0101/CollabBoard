@@ -1,8 +1,8 @@
-import 'dotenv/config'; 
+import 'dotenv/config';
 import http from 'http';
-import { connectDB } from './config/db.js';
 import { createApp } from './app.js';
 import { createSocketServer } from './socket.js';
+import { prisma } from './config/db.js';
 
 const port = process.env.PORT || 5000;
 
@@ -12,10 +12,20 @@ const start = async () => {
   const io = createSocketServer(server, allowedOrigins);
 
   app.set('io', io);
-  await connectDB();
+
+  await prisma.$connect(); // fails fast if DATABASE_URL is wrong or Postgres is down
+  console.log('Connected to PostgreSQL');
+
   server.listen(port, () => {
     console.log(` Operational Engine initialized on target gateway port ${port}`);
   });
+
+  const shutdown = async () => {
+    await prisma.$disconnect();
+    server.close(() => process.exit(0));
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 };
 
 start().catch((error) => {

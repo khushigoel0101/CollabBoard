@@ -3,3 +3,11 @@ node_modules/
 dist/
 .DS_Store
 info.md
+
+# Prisma generated client (rebuilt by `prisma generate`)
+src/generated/
+
+# Editor / AI tool folders
+.agents/
+.claude/
+.windsurf/

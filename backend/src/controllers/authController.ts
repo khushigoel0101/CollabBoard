@@ -1,15 +1,14 @@
 import { Request, Response } from 'express';
-import { User } from '../models/User.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { prisma } from '../config/db.js';
 import { getJwtSecret } from '../config/jwt.js';
 
-// Helper for cookie options to keep your code DRY (Don't Repeat Yourself)
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production', 
-  sameSite: 'lax' as const,                            
-  maxAge: 7 * 24 * 60 * 60 * 1000,                           
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
 export const register = async (req: Request, res: Response): Promise<void> => {
@@ -21,18 +20,23 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const existingUser = await User.findOne({ email });
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    const existingUser = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
     if (existingUser) {
       res.status(400).json({ error: 'Email already registered' });
       return;
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ name, email, password: hashedPassword });
-    await newUser.save();
+    const newUser = await prisma.user.create({
+      data: { name, email: normalizedEmail, password: hashedPassword },
+    });
 
     const token = jwt.sign(
-      { userId: newUser._id, email: newUser.email },
+      { userId: newUser.id, email: newUser.email },
       getJwtSecret(),
       { expiresIn: '7d' }
     );
@@ -40,8 +44,13 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     res.cookie('auth_token', token, COOKIE_OPTIONS)
        .status(201)
        .json({ user: { name: newUser.name, email: newUser.email } });
-       
-  } catch (err) {
+
+  } catch (err: any) {
+    // Two simultaneous signups with the same email: unique constraint fires
+    if (err?.code === 'P2002') {
+      res.status(400).json({ error: 'Email already registered' });
+      return;
+    }
     console.error('Register error:', err);
     res.status(500).json({ error: 'Registration failed' });
   }
@@ -56,20 +65,22 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const user = await User.findOne({ email });
+    const user = await prisma.user.findUnique({
+      where: { email: String(email).trim().toLowerCase() },
+    });
     if (!user) {
-      res.status(400).json({ error: 'Invalid email or password' }); 
+      res.status(400).json({ error: 'Invalid email or password' });
       return;
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      res.status(400).json({ error: 'Invalid email or password' }); 
+      res.status(400).json({ error: 'Invalid email or password' });
       return;
     }
 
     const token = jwt.sign(
-      { userId: user._id, email: user.email },
+      { userId: user.id, email: user.email },
       getJwtSecret(),
       { expiresIn: '7d' }
     );
@@ -86,14 +97,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
 export const logout = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Clear the auth_token cookie with matching security flags
     res.clearCookie('auth_token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax' as const,
     });
-
-    // Send a success status back to the frontend
     res.status(200).json({ message: 'Logged out successfully' });
   } catch (err) {
     console.error('Logout error:', err);
