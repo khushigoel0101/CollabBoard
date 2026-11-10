@@ -4,12 +4,12 @@ A real-time collaborative Kanban board for teams. Build, organize, and share pro
 
 ## Overview
 
-CollabBoard is a full-stack application that combines a TypeScript React frontend with an Express backend and MongoDB persistence. It supports user authentication, board creation, task management, drag-and-drop interactions, and real-time synchronization using Socket.io.
+CollabBoard is a full-stack application that combines a TypeScript React frontend with an Express backend and Postgresql persistence. It supports user authentication, board creation, task management, drag-and-drop interactions, and real-time synchronization using Socket.io.
 
 ## Tech Stack
 
 - Frontend: React, TypeScript, Vite, Tailwind CSS, Zustand
-- Backend: Node.js, Express, TypeScript, Socket.io, MongoDB
+- Backend: Node.js, Express, TypeScript, Socket.io, Postgresql
 - Authentication: JWT / token-based auth
 - Realtime: WebSockets with Socket.io
 
@@ -41,7 +41,7 @@ Create `backend/.env` with:
 
 ```env
 PORT=5000
-MONGO_URI=your_mongodb_uri
+DATABASE_URL=your_postgres_url
 JWT_SECRET=your_secret
 CLIENT_URL=http://localhost:5173
 ```
